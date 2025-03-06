@@ -1,30 +1,45 @@
 import { useState } from 'react';
-import { TextField, Button } from '@mui/material';
+import { TextField, Button, Box } from '@mui/material';
+import { Host } from '../types'; // Проверьте путь до types.ts
 
-export const HostForm = () => {
-  const [ip, setIp] = useState('');
+interface HostFormProps {
+  onAddHost: (newHost: Host) => void;
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const HostForm: React.FC<HostFormProps> = ({ onAddHost }) => {
+  const [url, setUrl] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const response = await fetch('http://localhost:8000/hosts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ip }),
-    });
-    if (response.ok) setIp('');
+    if (url.trim()) {
+      const newHost: Host = {
+        id: Date.now().toString(),
+        url: url.trim(),
+        status: 'Offline',
+        responseTime: null,
+        lastChecked: null
+      };
+      onAddHost(newHost);
+      setUrl('');
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <Box component="form" onSubmit={handleSubmit} sx={{ mb: 3 }}>
       <TextField
-        label="IP-адрес"
-        value={ip}
-        onChange={(e) => setIp(e.target.value)}
+        label="URL хоста"
+        variant="outlined"
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
         required
+        fullWidth
+        sx={{ mr: 2 }}
       />
       <Button type="submit" variant="contained" color="primary">
         Добавить хост
       </Button>
-    </form>
+    </Box>
   );
 };
+
+export default HostForm; // Убедитесь, что компонент экспортируется

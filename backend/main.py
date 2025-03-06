@@ -62,7 +62,7 @@ async def startup_event():
     monitoring_task = asyncio.create_task(ping_hosts())
 
 
-@app.websocket("/ws/monitor")
+@app.websocket("/api/ws/monitor")
 async def monitor(websocket: WebSocket):
     await websocket.accept()
     try:
@@ -73,12 +73,12 @@ async def monitor(websocket: WebSocket):
         await websocket.close()
 
 
-@app.get("/hosts", response_model=List[Host])
+@app.get("/api/hosts", response_model=List[Host])
 async def get_hosts():
     return hosts_db
 
 
-@app.post("/hosts")
+@app.post("/api/hosts")
 async def add_host(host: Host):
     if not is_valid_ip(host.ip):
         return {"status": "error", "message": "Invalid IP"}
@@ -88,7 +88,7 @@ async def add_host(host: Host):
     return {"status": "duplicate"}
 
 
-@app.post("/import")
+@app.post("/api/import")
 async def import_csv(file: UploadFile = File(...)):
     content = await file.read()
     reader = csv.reader(StringIO(content.decode()), delimiter=';')
@@ -98,7 +98,7 @@ async def import_csv(file: UploadFile = File(...)):
     return {"status": "success"}
 
 
-@app.get("/export")
+@app.get("/api/export")
 async def export_csv():
     output = StringIO()
     writer = csv.writer(output, delimiter=';')
