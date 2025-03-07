@@ -11,11 +11,16 @@ function App() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const ws = useRef<WebSocket | null>(null);
 
-  const API_URL = process.env.REACT_APP_API_URL || 'https://localhost:8000';
-  const WS_URL = `${API_URL.replace(/^http/, 'wss')}/api/ws/monitor`;
+// Используем URL API для корректной обработки протокола
+const apiURL = new URL(process.env.REACT_APP_API_URL || 'https://localhost:8443');
+const WS_URL = `${apiURL.protocol === 'http:' ? 'wss' : 'ws'}://${apiURL.host}/api/ws/monitor`;
+
 
   useEffect(() => {
     const connectWebSocket = () => {
+      if (typeof window === 'undefined') return;
+
+      // Без использования https.Agent
       ws.current = new WebSocket(WS_URL);
 
       ws.current.onopen = () => {
@@ -46,7 +51,7 @@ function App() {
     connectWebSocket();
 
     // Начальная загрузка данных
-    fetch(`${API_URL}/api/hosts`)
+    fetch(`${apiURL}/api/hosts`)
       .then(response => {
         if (!response.ok) throw new Error('Ошибка загрузки данных');
         return response.json();
@@ -60,14 +65,14 @@ function App() {
     return () => {
       ws.current?.close();
     };
-  }, [API_URL, WS_URL]);
+  }, [apiURL, WS_URL]);
 
   const handleAddHost = async (newHost: Host) => {
     try {
-      const response = await fetch(`${API_URL}/api/hosts`, {
+      const response = await fetch(`${apiURL}/api/hosts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newHost)
+        body: JSON.stringify(newHost),
       });
 
       if (!response.ok) {

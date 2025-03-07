@@ -2,7 +2,8 @@
 FROM node:18 AS build
 WORKDIR /app
 COPY package*.json ./
-COPY . .
+
+COPY frontend/ ./
 RUN npm run build
 
 # Финальный образ с Nginx и SSL

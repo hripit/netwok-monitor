@@ -1,28 +1,31 @@
-version: '3.8'
-
 services:
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
     ports:
-      - "8443:443"
+      - "8443:443"  # Хост:8443 → Контейнер:443 (HTTPS)
     volumes:
       - ./backend:/app
-      - ./certs:/app/certs
+      - ./certs:/app/certs  # Монтируем сертификаты
     networks:
       - app-network
 
   frontend:
     build:
       context: .
-      dockerfile: frontend/Dockerfile/
+      dockerfile: frontend/Dockerfile
       args:
-        REACT_APP_API_URL: "https://localhost:8443"
+        REACT_APP_API_URL: "https://backend:443"  # Используем HTTPS
+
     ports:
-      - "3000:443"
+      - "3000:443"  # Хост:3000 → Контейнер:443 (HTTPS)
+    volumes:
+      - ./frontend:/app
+      - ./certs:/etc/nginx/certs  # Монтируем сертификаты в Nginx
     environment:
       - CHOKIDAR_USEPOLLING=true
+      - REACT_APP_API_URL=https://backend:443
     depends_on:
       - backend
     networks:

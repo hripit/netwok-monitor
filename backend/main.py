@@ -13,20 +13,17 @@ from fastapi.responses import Response  # Исправление: добавле
 
 app = FastAPI()
 
-# Исправление: правильные CORS origins для Docker
 origins = [
-    "http://localhost:3000",
-    "https://localhost:3000",  # Для HTTPS
-    # "http://frontend:80",
-    # "http://backend:8000"
+    "https://backend:443",
+    "https://localhost:3000",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_methods=["*"],        # Разрешить все методы
+    allow_headers=["*"],        # Разрешить все заголовки
     expose_headers=["*"]
 )
 
