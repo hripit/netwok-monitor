@@ -7,6 +7,9 @@ services:
       - ./backend:/app
     command: uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
+    networks:
+      - app-network
+
   frontend:
     build: ./frontend
     ports:
@@ -15,3 +18,8 @@ services:
       - CHOKIDAR_USEPOLLING=true
     depends_on:
       - backend
+    networks:
+      - app-network
+networks:
+  app-network:
+    driver: bridge
