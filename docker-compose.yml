@@ -2,24 +2,36 @@ services:
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - "8000:8000"    # HTTP порт
+      - "8443:8443"    # HTTPS порт (если используется SSL)
     volumes:
       - ./backend:/app
-    command: uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
+      - ./certs:/app/certs
+    command: >
+      uvicorn main:app
+            --reload
+            --host 0.0.0.0
+            --port 8000
+            --ssl-keyfile /app/certs/key.pem
+            --ssl-certfile /app/certs/cert.pem
     networks:
       - app-network
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # Передаем API_URL при сборке фронта
+        REACT_APP_API_URL: "https://localhost:8000"
     ports:
-      - "3000:80"
+      - "3000:80"  # Левый порт: хост, правый: контейнер
     environment:
       - CHOKIDAR_USEPOLLING=true
     depends_on:
       - backend
     networks:
       - app-network
+
 networks:
   app-network:
     driver: bridge
