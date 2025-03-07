@@ -17,8 +17,8 @@ app = FastAPI()
 origins = [
     "http://localhost:3000",
     "https://localhost:3000",  # Для HTTPS
-    "http://frontend:80",
-    "http://backend:8000"
+    # "http://frontend:80",
+    # "http://backend:8000"
 ]
 
 app.add_middleware(

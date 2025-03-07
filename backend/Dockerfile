@@ -2,7 +2,7 @@
 FROM python:3.9-slim as builder
 
 WORKDIR /app
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --user -r requirements.txt
 
 # Финальный образ
@@ -10,10 +10,11 @@ FROM python:3.9-slim
 
 WORKDIR /app
 COPY --from=builder /root/.local /root/.local
-COPY . .
 
-# Настройка переменных окружения
+# Копируем сертификаты из корня проекта
+COPY ./certs /app/certs
+
+COPY . .
 ENV PATH=/root/.local/bin:$PATH
 
-# Запуск сервера
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "443", "--ssl-keyfile", "/app/certs/key.pem", "--ssl-certfile", "/app/certs/cert.pem"]
