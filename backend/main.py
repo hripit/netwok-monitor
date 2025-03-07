@@ -1,5 +1,4 @@
 from fastapi import FastAPI, WebSocket, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import asyncio
 import csv
@@ -8,15 +7,23 @@ from icmplib import async_ping
 from datetime import datetime
 from typing import List, Optional
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
 
-# CORS настройки
+origins = [
+    "http://localhost:3000",
+    "http://frontend:3000",
+    "ws://frontend:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 
@@ -28,39 +35,42 @@ class Host(BaseModel):
     loss: float = 0.0
     last_ping: str = "00:00:00"
 
-
 hosts_db: List[Host] = []
 monitoring_task = None
 
-
 def is_valid_ip(ip: str) -> bool:
     parts = ip.split('.')
-    return len(parts) == 4 and all(part.isdigit() and 0 <= int(part) <= 255 for part in parts)
-
+    return len(parts) == 4 and all(
+        part.isdigit() and 0 <= int(part) <= 255
+        for part in parts
+    )
 
 async def ping_hosts():
     while True:
         for host in hosts_db:
             try:
-                result = await async_ping(host.ip, count=1, timeout=1, privileged=False)
+                result = await async_ping(
+                    host.ip,
+                    count=1,
+                    timeout=1,
+                    privileged=False
+                )
                 host.status = "online" if result.is_alive else "offline"
                 host.rtt = result.avg_rtt * 1000 if result.is_alive else None
-                host.delivered = result.packet_loss * 100
-                host.loss = 100 - host.delivered
+                host.loss = result.packet_loss * 100
+                host.delivered = 100 - host.loss
                 host.last_ping = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            except:
+            except Exception as e:
                 host.status = "error"
                 host.rtt = None
-                host.delivered = 0.0
                 host.loss = 100.0
+                host.delivered = 0.0
         await asyncio.sleep(1)
-
 
 @app.on_event("startup")
 async def startup_event():
     global monitoring_task
     monitoring_task = asyncio.create_task(ping_hosts())
-
 
 @app.websocket("/api/ws/monitor")
 async def monitor(websocket: WebSocket):
@@ -72,11 +82,9 @@ async def monitor(websocket: WebSocket):
     except:
         await websocket.close()
 
-
 @app.get("/api/hosts", response_model=List[Host])
 async def get_hosts():
     return hosts_db
-
 
 @app.post("/api/hosts")
 async def add_host(host: Host):
@@ -87,7 +95,6 @@ async def add_host(host: Host):
         return {"status": "success"}
     return {"status": "duplicate"}
 
-
 @app.post("/api/import")
 async def import_csv(file: UploadFile = File(...)):
     content = await file.read()
@@ -97,12 +104,16 @@ async def import_csv(file: UploadFile = File(...)):
             hosts_db.append(Host(ip=row[0]))
     return {"status": "success"}
 
+from fastapi.responses import Response
 
 @app.get("/api/export")
 async def export_csv():
     output = StringIO()
     writer = csv.writer(output, delimiter=';')
-    writer.writerow(["IP", "Статус", "RTT, мс", "% доставки", "% потерь", "Последний пинг"])
+    writer.writerow([
+        "IP", "Статус", "RTT, мс",
+        "% доставки", "% потерь", "Последний пинг"
+    ])
     for host in hosts_db:
         writer.writerow([
             host.ip,
