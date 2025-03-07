@@ -1,7 +1,8 @@
 export interface Host {
-  id: string;
-  url: string;
-  status: 'Online' | 'Offline';
-  responseTime: number | null;
-  lastChecked: Date | null;
+  ip: string;
+  status: 'online' | 'offline' | 'error';
+  rtt: number | null;
+  delivered: number;
+  loss: number;
+  last_ping: string;
 }
