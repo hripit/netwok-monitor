@@ -13,14 +13,13 @@ function App() {
 
 // Используем URL API для корректной обработки протокола
 const apiURL = new URL(process.env.REACT_APP_API_URL || 'https://localhost:8443');
-const WS_URL = `${apiURL.protocol === 'http:' ? 'wss' : 'ws'}://${apiURL.host}/api/ws/monitor`;
+const WS_URL = `${apiURL.protocol === 'http:' ? 'wss' : 'ws'}:/${apiURL.host}/api/ws/monitor`;
 
 
   useEffect(() => {
     const connectWebSocket = () => {
       if (typeof window === 'undefined') return;
 
-      // Без использования https.Agent
       ws.current = new WebSocket(WS_URL);
 
       ws.current.onopen = () => {

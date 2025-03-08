@@ -16,15 +16,17 @@ app = FastAPI()
 origins = [
     "https://backend:443",
     "https://localhost:3000",
+    "https://localhost",
+    "https://localhost:8443"  # Добавьте ваш frontend URL
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],        # Разрешить все методы
-    allow_headers=["*"],        # Разрешить все заголовки
-    expose_headers=["*"]
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"]  # Добавьте для отладки
 )
 
 
