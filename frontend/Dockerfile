@@ -9,6 +9,7 @@ RUN npm run build
 # Финальный образ с Nginx и SSL
 FROM nginx:alpine
 
+COPY --from=build /app/build /usr/share/nginx/html
 # Исправленный путь к сертификатам
 COPY ./certs /etc/nginx/certs
 

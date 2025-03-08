@@ -114,7 +114,8 @@ const HostTable: React.FC<HostTableProps> = ({ hosts, onRefresh }) => {
         defaultColDef={defaultColDef}
         pagination={true}
         paginationPageSize={20}
-        rowSelection="multiple"
+        rowSelection={{ mode: 'singleRow',
+                    enableCellTextSelection: true }}
         localeText={{
           page: 'Страница',
           to: 'из',
