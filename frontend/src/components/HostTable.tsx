@@ -1,3 +1,4 @@
+// src/components/HostTable.tsx
 import { useState, useEffect, useRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -6,11 +7,9 @@ import { Host } from '../types';
 import { Button } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DownloadIcon from '@mui/icons-material/Download';
-
-import { AllCommunityModule, ModuleRegistry, provideGlobalGridOptions  } from 'ag-grid-community';
+import { AllCommunityModule, ModuleRegistry, provideGlobalGridOptions, ColDef} from 'ag-grid-community';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
-
 provideGlobalGridOptions({ theme: "legacy" });
 
 interface HostTableProps {
@@ -48,24 +47,74 @@ const HostTable: React.FC<HostTableProps> = ({ hosts, onRefresh }) => {
     sortable: true,
     filter: true,
     resizable: true,
+    cellStyle: (params: any) => ({
+      color: params.value === 'online' ? 'green' : params.value === 'offline' ? 'red' : 'black',
+      fontWeight: 'bold'
+    })
   };
 
+  // Явное указание типа колонок
+  const columnDefs: ColDef<Host>[] = [
+    {
+      field: 'ip',
+      headerName: 'IP-адрес',
+      pinned: 'left', // Допустимое значение
+      minWidth: 150
+    },
+    {
+      field: 'status',
+      headerName: 'Статус',
+      cellStyle: (params) => ({
+        color: params.value === 'online' ? 'green' : 'red',
+        fontWeight: 'bold'
+      }),
+      width: 120
+    },
+    {
+      field: 'rtt',
+      headerName: 'RTT (мс)',
+      valueFormatter: (params) =>
+          params.value ? params.value.toFixed(1) : 'N/A',
+      width: 120
+    },
+    {
+      field: 'delivered',
+      headerName: '% доставки',
+      valueFormatter: (params) =>
+          params.value ? `${params.value.toFixed(1)}%` : '0%',
+      width: 120
+    },
+    {
+      field: 'loss',
+      headerName: '% потерь',
+      valueFormatter: (params) =>
+          params.value ? `${params.value.toFixed(1)}%` : '0%',
+      width: 120
+    },
+    {
+      field: 'last_ping',
+      headerName: 'Последняя проверка',
+      valueFormatter: (params) =>
+          params.value ? new Date(params.value).toLocaleString() : 'N/A',
+      width: 200
+    }
+  ];
+
   return (
-    <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
-      <div className="d-flex gap-2 mb-3">
+    <div className="ag-theme-alpine" style={{ height: '70vh', width: '100%' }}>
+      <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between' }}>
         <Button
-          variant="contained"
-          color="primary"
-          onClick={onRefresh}
+          variant="outlined"
           startIcon={<RefreshIcon />}
+          onClick={onRefresh}
+          style={{ marginRight: '1rem' }}
         >
           Обновить данные
         </Button>
         <Button
-          variant="contained"
-          color="success"
-          onClick={exportToCSV}
+          variant="outlined"
           startIcon={<DownloadIcon />}
+          onClick={exportToCSV}
         >
           Экспорт в CSV
         </Button>
@@ -73,49 +122,11 @@ const HostTable: React.FC<HostTableProps> = ({ hosts, onRefresh }) => {
       <AgGridReact
         ref={gridRef}
         rowData={rowData}
-        columnDefs={[
-          {
-            field: 'ip',
-            headerName: 'IP-адрес',
-            minWidth: 150
-          },
-          {
-            field: 'status',
-            cellStyle: (params) => ({
-              color: params.value === 'online' ? 'green' : 'red',
-              fontWeight: 'bold'
-            })
-          },
-          {
-            field: 'rtt',
-            headerName: 'RTT (мс)',
-            valueFormatter: (params) =>
-              params.value ? params.value.toFixed(1) : 'N/A'
-          },
-          {
-            field: 'delivered',
-            headerName: '% доставки',
-            valueFormatter: (params) =>
-              params.value ? `${params.value.toFixed(1)}%` : '0%'
-          },
-          {
-            field: 'loss',
-            headerName: '% потерь',
-            valueFormatter: (params) =>
-              params.value ? `${params.value.toFixed(1)}%` : '0%'
-          },
-          {
-            field: 'last_ping',
-            headerName: 'Последняя проверка',
-            valueFormatter: (params) =>
-              params.value ? new Date(params.value).toLocaleString() : 'N/A'
-          },
-        ]}
+        columnDefs={columnDefs}
         defaultColDef={defaultColDef}
         pagination={true}
         paginationPageSize={20}
-        rowSelection={{ mode: 'single',
-                    enableCellTextSelection: false }}
+        rowSelection={{ mode: 'singleRow', }}
         localeText={{
           page: 'Страница',
           to: 'из',
