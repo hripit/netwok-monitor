@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router} from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Container, Snackbar } from '@mui/material';
 import HostTable from './components/HostTable';
 import HostForm from './components/HostForm';

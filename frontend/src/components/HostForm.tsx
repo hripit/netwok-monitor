@@ -21,6 +21,11 @@ const HostForm: React.FC<HostFormProps> = ({ onAddHost }) => {
       return;
     }
 
+    if (!ip.trim()) {
+      setError('IP-адрес не может быть пустым');
+      return;
+    }
+
     try {
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/hosts`, {
         method: 'POST',
@@ -29,12 +34,12 @@ const HostForm: React.FC<HostFormProps> = ({ onAddHost }) => {
       });
 
       if (response.ok) {
-        const newHost = await response.json();
+        const newHost = await response.json();  // Теперь получаем полный объект
         onAddHost(newHost);
         setIp('');
       } else {
         const errorData = await response.json();
-        setError(errorData.message || 'Ошибка добавления хоста');
+        setError(errorData.detail || 'Ошибка добавления хоста');
       }
     } catch (err) {
       setError('Сетевая ошибка');

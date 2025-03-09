@@ -22,9 +22,8 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    # allow_origins=origins,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"]  # Добавьте для отладки
@@ -95,7 +94,7 @@ async def monitor(websocket: WebSocket):
     finally:
         try:
             await websocket.close()
-        except:
+        except Exception:
             pass
 
 
@@ -108,10 +107,14 @@ async def get_hosts():
 async def add_host(host: Host):
     if not is_valid_ip(host.ip):
         raise HTTPException(status_code=400, detail="Invalid IP address")
-    if host.ip in [h.ip for h in hosts_db]:
+
+    # Исправленная проверка дубликатов
+    existing_hosts = [h.ip.lower() for h in hosts_db]
+    if host.ip.lower() in existing_hosts:
         raise HTTPException(status_code=409, detail="Host already exists")
+
     hosts_db.append(host)
-    return {"status": "success"}
+    return host
 
 
 @app.post("/api/import")

@@ -45,7 +45,7 @@ const HostTable: React.FC<HostTableProps> = ({ hosts, onRefresh }) => {
 
   const defaultColDef = {
     sortable: true,
-    filter: true,
+    filter: false,
     resizable: true,
     cellStyle: (params: any) => ({
       color: params.value === 'online' ? 'green' : params.value === 'offline' ? 'red' : 'black',
@@ -68,7 +68,8 @@ const HostTable: React.FC<HostTableProps> = ({ hosts, onRefresh }) => {
         color: params.value === 'online' ? 'green' : 'red',
         fontWeight: 'bold'
       }),
-      width: 120
+      width: 120,
+      checkboxSelection: false
     },
     {
       field: 'rtt',
