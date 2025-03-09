@@ -11,10 +11,13 @@ function App() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const ws = useRef<WebSocket | null>(null);
 
-// Используем URL API для корректной обработки протокола
-const apiURL = new URL(process.env.REACT_APP_API_URL || 'https://localhost:8443');
-const WS_URL = `${apiURL.protocol === 'https:' ? 'wss' : 'ws'}://${apiURL.host}/api/ws/monitor`;
+  // Исправление 1: Убираем завершающий слэш в URL
+  const API_BASE_URL = process.env.REACT_APP_API_URL
+    ? process.env.REACT_APP_API_URL.replace(/\/$/, '') // Удаляем слэш в конце
+    : 'https://localhost:8443';
 
+  // Исправление 2: Корректное формирование WS_URL
+  const WS_URL = `${API_BASE_URL.replace(/^http/, 'ws')}/api/ws/monitor`;
 
   useEffect(() => {
     const connectWebSocket = () => {
@@ -49,8 +52,8 @@ const WS_URL = `${apiURL.protocol === 'https:' ? 'wss' : 'ws'}://${apiURL.host}/
 
     connectWebSocket();
 
-    // Начальная загрузка данных
-    fetch(`${apiURL}/api/hosts`)
+    // Исправление 3: Убираем лишний слэш в fetch-запросе
+    fetch(`${API_BASE_URL}/api/hosts`)
       .then(response => {
         if (!response.ok) throw new Error('Ошибка загрузки данных');
         return response.json();
@@ -64,11 +67,12 @@ const WS_URL = `${apiURL.protocol === 'https:' ? 'wss' : 'ws'}://${apiURL.host}/
     return () => {
       ws.current?.close();
     };
-  }, [apiURL, WS_URL]);
+  }, [API_BASE_URL, WS_URL]);
 
   const handleAddHost = async (newHost: Host) => {
     try {
-      const response = await fetch(`${apiURL}/api/hosts`, {
+      // Исправление 4: Используем API_BASE_URL вместо apiURL
+      const response = await fetch(`${API_BASE_URL}/api/hosts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newHost),

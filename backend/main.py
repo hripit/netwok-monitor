@@ -145,7 +145,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
+        port=443,
         reload=True,
         ssl_keyfile="/app/certs/key.pem",  # Укажите путь к вашему ключу
         ssl_certfile="/app/certs/cert.pem"  # Укажите путь к вашему сертификату

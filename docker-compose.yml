@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     ports:
-      - "8443:443"  # HTTPS для бэкенда
+      - "8443:443"
     volumes:
       - ./backend:/app
       - ./certs:/app/certs  # Сертификаты для бэкенда
