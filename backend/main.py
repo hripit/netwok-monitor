@@ -13,12 +13,7 @@ from fastapi.responses import Response  # Исправление: добавле
 
 app = FastAPI()
 
-origins = [
-    "https://backend:443",
-    "https://localhost:3000",
-    "https://localhost",
-    "https://localhost:8443"  # Добавьте ваш frontend URL
-]
+origins = ["https://localhost", "https://backend:443"]
 
 app.add_middleware(
     CORSMiddleware,

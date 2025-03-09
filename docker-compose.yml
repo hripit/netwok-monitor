@@ -10,6 +10,8 @@ services:
       - ./certs:/app/certs  # Сертификаты для бэкенда
     networks:
       - app-network
+    cap_add:
+      - NET_RAW
 
   frontend:
     build:
