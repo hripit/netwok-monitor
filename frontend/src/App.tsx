@@ -13,7 +13,7 @@ function App() {
 
 // Используем URL API для корректной обработки протокола
 const apiURL = new URL(process.env.REACT_APP_API_URL || 'https://localhost:8443');
-const WS_URL = `${apiURL.protocol === 'http:' ? 'wss' : 'ws'}:/${apiURL.host}/api/ws/monitor`;
+const WS_URL = `${apiURL.protocol === 'https:' ? 'wss' : 'ws'}:/${apiURL.host}/api/ws/monitor`;
 
 
   useEffect(() => {

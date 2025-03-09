@@ -33,6 +33,9 @@ def merge_all_files(
                 continue  # Пропускаем глубже указанного уровня
 
             for file in files:
+                if file in ['merge.py', 'package-lock.json']:
+                    continue
+
                 file_path = os.path.join(subdir, file)
                 rel_path = os.path.relpath(file_path, root_dir)
 
