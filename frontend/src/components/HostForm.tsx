@@ -3,66 +3,78 @@ import { TextField, Button, Box, Alert } from '@mui/material';
 import { Host } from '../types';
 
 interface HostFormProps {
-  onAddHost: (newHost: Host) => void;
+  onAddHost: (newHost: Host) => Promise<void>;
 }
 
-const HostForm: React.FC<HostFormProps> = ({ onAddHost }) => {
+const HostForm = ({ onAddHost }: HostFormProps) => {
   const [ip, setIp] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
 
-    // Валидация IP
-    const isValid = /^(\d{1,3}\.){3}\d{1,3}$/.test(ip);
-    if (!isValid) {
-      setError('Некорректный IP-адрес');
-      return;
-    }
+    // Нормализация IP: убираем пробелы и приводим к нижнему регистру
+    const normalizedIP = ip.trim().toLowerCase();
+    setIp(normalizedIP); // Обновляем состояние для отображения очищенного IP
 
-    if (!ip.trim()) {
-      setError('IP-адрес не может быть пустым');
+    // Валидация формата IP
+    if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(normalizedIP)) {
+      setError('Некорректный формат IP-адреса');
       return;
     }
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/hosts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip })
-      });
+      // Создаем новый хост (статус по умолчанию 'unknown')
+      const newHost: Host = {
+        ip: normalizedIP,
+        status: 'unknown',
+        rtt: null,
+        delivered: 0,
+        loss: 100,
+        last_ping: '00:00:00'
+      };
 
-      if (response.ok) {
-        const newHost = await response.json();  // Теперь получаем полный объект
-        onAddHost(newHost);
-        setIp('');
-      } else {
-        const errorData = await response.json();
-        setError(errorData.detail || 'Ошибка добавления хоста');
-      }
-    } catch (err) {
-      setError('Сетевая ошибка');
+      // Вызываем функцию добавления хоста из родительского компонента
+      await onAddHost(newHost);
+
+      // Очищаем форму при успешном добавлении
+      setIp('');
+      setError(null);
+
+    } catch (error: any) {
+      // Обрабатываем ошибки от API
+      const errorMessage = error?.response?.data?.detail || 'Ошибка добавления хоста';
+      setError(errorMessage);
     }
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit} sx={{ mb: 3 }}>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      <TextField
-        label="IP-адрес"
-        variant="outlined"
-        value={ip}
-        onChange={(e) => setIp(e.target.value)}
-        required
-        fullWidth
-        sx={{ mr: 2 }}
-        helperText="Пример: 192.168.1.1"
-      />
-      <Button type="submit" variant="contained" color="primary">
-        Добавить хост
-      </Button>
-    </Box>
+      <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+        <TextField
+            label="IP-адрес"
+            variant="outlined"
+            fullWidth
+            value={ip}
+            onChange={(e) => setIp(e.target.value)}
+            error={!!error}
+            helperText={error ? 'Проверьте формат IP' : ''}
+            InputProps={{
+              style: { fontFamily: 'monospace' }
+            }}
+        />
+
+        <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            sx={{ mt: 2 }}
+            disabled={!ip.trim()}
+        >
+          Добавить хост
+        </Button>
+      </Box>
   );
 };
 
