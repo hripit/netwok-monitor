@@ -10,15 +10,21 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response  # Исправление: добавлен импорт Response
+from starlette.websockets import WebSocketDisconnect
 
 app = FastAPI()
 
-origins = ["https://localhost", "https://backend:443"]
+origins = [
+    "https://localhost:8443",
+    "https://backend:443",
+    "http://localhost:3000",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    # allow_origins=origins,
     allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"]  # Добавьте для отладки
@@ -75,7 +81,6 @@ async def startup_event():
     monitoring_task = asyncio.create_task(ping_hosts())
 
 
-# Исправление: убрана ручная проверка origin
 @app.websocket("/api/ws/monitor")
 async def monitor(websocket: WebSocket):
     await websocket.accept()
@@ -83,8 +88,15 @@ async def monitor(websocket: WebSocket):
         while True:
             await websocket.send_json([host.dict() for host in hosts_db])
             await asyncio.sleep(1)
-    except:
-        await websocket.close()
+    except WebSocketDisconnect:
+        print("WebSocket disconnected")
+    except Exception as e:
+        print(f"WebSocket error: {str(e)}")
+    finally:
+        try:
+            await websocket.close()
+        except:
+            pass
 
 
 @app.get("/api/hosts", response_model=List[Host])
