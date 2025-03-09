@@ -68,8 +68,7 @@ const HostTable: React.FC<HostTableProps> = ({ hosts, onRefresh }) => {
         color: params.value === 'online' ? 'green' : 'red',
         fontWeight: 'bold'
       }),
-      width: 120,
-      checkboxSelection: false
+      width: 120
     },
     {
       field: 'rtt',

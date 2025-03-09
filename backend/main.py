@@ -21,13 +21,14 @@ origins = [
     "http://localhost:3000",
 ]
 
+# В настройках CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
     allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
+    expose_headers=["*"]
 )
 
 
@@ -39,83 +40,113 @@ class Host(BaseModel):
     loss: float = 0.0
     last_ping: str = "00:00:00"
 
+    class Config:
+        orm_mode = True
+
 
 hosts_db: List[Host] = []
+active_connections = []
+
 monitoring_task = None
 
 
+# Валидация IP-адреса
 def is_valid_ip(ip: str) -> bool:
+    # Упрощенная валидация для примера
     parts = ip.split('.')
-    return len(parts) == 4 and all(
-        part.isdigit() and 0 <= int(part) <= 255
-        for part in parts
-    )
+    return len(parts) == 4 and all(part.isdigit() for part in parts)
 
 
+# Фоновая задача мониторинга
 async def ping_hosts():
     while True:
         for host in hosts_db:
             try:
-                result = await async_ping(
-                    host.ip,
-                    count=1,
-                    timeout=1,
-                    privileged=False
-                )
+                result = await async_ping(host.ip, count=4, timeout=2)
                 host.status = "online" if result.is_alive else "offline"
                 host.rtt = result.avg_rtt * 1000 if result.is_alive else None
                 host.loss = result.packet_loss * 100
                 host.delivered = 100 - host.loss
                 host.last_ping = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            except Exception as e:
+            except Exception:
                 host.status = "error"
                 host.rtt = None
                 host.loss = 100.0
                 host.delivered = 0.0
+        await broadcast_hosts_update()  # Рассылаем данные после каждого цикла
         await asyncio.sleep(1)
 
 
+# Запуск фоновой задачи при старте
 @app.on_event("startup")
 async def startup_event():
-    global monitoring_task
-    monitoring_task = asyncio.create_task(ping_hosts())
+    asyncio.create_task(ping_hosts())
 
 
 @app.websocket("/api/ws/monitor")
-async def monitor(websocket: WebSocket):
+async def websocket_monitor(websocket: WebSocket):
     await websocket.accept()
+    active_connections.append(websocket)
+    closed = False  # Флаг для отслеживания состояния
+
     try:
+        # Отправляем текущее состояние при подключении
+        await websocket.send_json([host.dict() for host in hosts_db])
+
         while True:
-            await websocket.send_json([host.dict() for host in hosts_db])
-            await asyncio.sleep(1)
-    except WebSocketDisconnect:
-        print("WebSocket disconnected")
-    except Exception as e:
-        print(f"WebSocket error: {str(e)}")
+            try:
+                # Ожидаем данные от клиента
+                data = await websocket.receive_text()
+                if data == "refresh":
+                    await websocket.send_json([host.dict() for host in hosts_db])
+            except WebSocketDisconnect:
+                # Клиент корректно закрыл соединение
+                closed = True
+                break
+            except Exception:
+                # Обработка других ошибок
+                closed = True
+                break
+
     finally:
-        try:
+        # Безопасное удаление соединения
+        if websocket in active_connections:
+            active_connections.remove(websocket)
+        # Закрываем только если соединение ещё активно
+        if not closed:
             await websocket.close()
-        except Exception:
-            pass
 
 
-@app.get("/api/hosts", response_model=List[Host])
+# Получение всех хостов
+@app.get("/api/hosts")
 async def get_hosts():
     return hosts_db
 
 
+# Рассылка обновлений всем клиентам
+async def broadcast_hosts_update():
+    data = [host.dict() for host in hosts_db]
+    for connection in list(active_connections):  # Используем копию списка
+        try:
+            await connection.send_json(data)
+        except Exception:
+            active_connections.remove(connection)
+
+
+# Добавление хоста
 @app.post("/api/hosts")
 async def add_host(host: Host):
-    if not is_valid_ip(host.ip):
-        raise HTTPException(status_code=400, detail="Invalid IP address")
+    # Проверка дубликатов
+    if host.ip.lower() in [h.ip.lower() for h in hosts_db]:
+        raise HTTPException(409, "Host already exists")
 
-    # Исправленная проверка дубликатов
-    existing_hosts = [h.ip.lower() for h in hosts_db]
-    if host.ip.lower() in existing_hosts:
-        raise HTTPException(status_code=409, detail="Host already exists")
+    if not is_valid_ip(host.ip):
+        raise HTTPException(400, "Invalid IP address")
 
     hosts_db.append(host)
-    return host.dict()
+    await broadcast_hosts_update()  # Мгновенное обновление для всех клиентов
+    return {"status": "success",
+            "host": host.dict()}
 
 
 @app.post("/api/import")
