@@ -24,6 +24,7 @@ services:
       - "443:443"  # HTTPS
     volumes:
       - ./certs:/etc/nginx/certs  # Сертификаты для Nginx
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     environment:
       - CHOKIDAR_USEPOLLING=true
       - REACT_APP_API_URL=https://backend:443

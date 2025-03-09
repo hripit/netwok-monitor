@@ -114,7 +114,7 @@ async def add_host(host: Host):
         raise HTTPException(status_code=409, detail="Host already exists")
 
     hosts_db.append(host)
-    return host
+    return host.dict()
 
 
 @app.post("/api/import")

@@ -12,7 +12,7 @@ WORKDIR /app
 COPY --from=builder /root/.local /root/.local
 
 # Копируем сертификаты из корня проекта
-COPY ./certs /app/certs
+#COPY ./certs /app/certs
 
 COPY backend/. .
 ENV PATH=/root/.local/bin:$PATH
