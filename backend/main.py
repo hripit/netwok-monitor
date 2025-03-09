@@ -16,6 +16,7 @@ app = FastAPI()
 
 origins = [
     "https://localhost:8443",
+    "https://localhost",  # Убран порт
     "https://backend:443",
     "http://localhost:3000",
 ]
@@ -26,7 +27,7 @@ app.add_middleware(
     allow_origins=origins,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"]  # Добавьте для отладки
+    expose_headers=["*"],
 )
 
 
