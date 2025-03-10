@@ -16,9 +16,8 @@
    ```bash
    git clone https://github.com/your-repo/network-monitor.git
    cd network-monitor
+   docker-compose up --build
 
-2. **Запуск приложения**
-	docker-compose up --build
-
+2. **Запуск приложения**:
 	Приложение будет доступно по адресу: http://localhost или https://localhost
 
