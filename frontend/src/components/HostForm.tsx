@@ -17,7 +17,6 @@ const HostForm = ({ onAddHost, onImport, hosts }: HostFormProps) => {
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-    // Автоматический сброс сообщений через useEffect
     useEffect(() => {
         if (successMessage) {
             const timer = setTimeout(() => setSuccessMessage(null), 3000);

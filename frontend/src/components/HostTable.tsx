@@ -24,8 +24,8 @@ const HostTable: React.FC<HostTableProps> = ({ hosts }) => {
     const updatedIps = hosts.map(host => host.ip);
     setHighlightedRows(updatedIps);
 
-    // Убираем подсветку через 2 секунды
-    const timer = setTimeout(() => setHighlightedRows([]), 2000);
+    // Убираем подсветку через 1 сек
+    const timer = setTimeout(() => setHighlightedRows([]), 1000);
 
     return () => clearTimeout(timer);
   }, [hosts]);
@@ -52,7 +52,7 @@ const HostTable: React.FC<HostTableProps> = ({ hosts }) => {
       field: 'status',
       headerName: 'Статус',
       cellStyle: (params: any) => {
-        const ip = params.data?.ip; // Извлекаем IP-адрес
+        const ip = params.data?.ip;
         return {
           color: params.value === 'online' ? 'green' : params.value === 'offline' ? 'red' : 'black',
           fontWeight: 'bold',

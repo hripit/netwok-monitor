@@ -6,8 +6,8 @@ import HostForm from './components/HostForm';
 import HostTable from './components/HostTable';
 import { Host } from './types';
 
-const RECONNECT_INTERVAL = 1000; // 1 секунда
-const BATCH_UPDATE_DELAY = 100; // 100 мс для группировки обновлений
+const RECONNECT_INTERVAL = 1000; //
+const BATCH_UPDATE_DELAY = 100; //
 
 const App = () => {
   const [hosts, setHosts] = useState<Host[]>([]);
