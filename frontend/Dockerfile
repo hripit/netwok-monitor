@@ -4,17 +4,15 @@ WORKDIR /app
 COPY package*.json ./
 
 COPY frontend/ ./
+RUN npm install
 RUN npm run build
 
 # Финальный образ с Nginx и SSL
 FROM nginx:alpine
 
-#COPY --from=build /app/build /usr/share/nginx/html
-# Исправленный путь к сертификатам
-#COPY certs /etc/nginx/certs
-
-# Копируем конфиг NGINX
-#COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+# Отключаем ненужные скрипты в /docker-entrypoint.d/
+RUN chmod -x /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+RUN chmod -x /docker-entrypoint.d/20-envsubst-on-templates.sh
 
 # Копируем собранный фронтенд
 COPY --from=build /app/build /usr/share/nginx/html

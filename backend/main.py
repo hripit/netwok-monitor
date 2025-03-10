@@ -1,4 +1,5 @@
-import ssl
+import ipaddress
+import logging
 from fastapi import FastAPI, WebSocket, UploadFile, File, HTTPException
 from pydantic import BaseModel
 import asyncio
@@ -11,14 +12,29 @@ from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response  # Исправление: добавлен импорт Response
 from starlette.websockets import WebSocketDisconnect
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+
+# Определение lifespan
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Запуск фоновой задачи при старте
+    asyncio.create_task(ping_hosts())
+    logger.info("Приложение запущено. Фоновая задача ping_hosts активирована.")
+
+    yield  # Приложение работает
+
+    # Здесь можно добавить код для завершения работы
+    logger.info("Приложение завершает работу.")
+
+
+app = FastAPI(lifespan=lifespan)
 
 origins = [
-    "https://localhost:8443",
-    "https://localhost",  # Убран порт
-    "https://backend:443",
-    "http://localhost:3000",
+    'https://localhost:8443',
+    'https://localhost',
+    'https://backend:443',
+    'http://localhost:3000',  # для отладки
 ]
 
 # В настройках CORS
@@ -31,6 +47,10 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
+# Настройка логирования
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 
 class Host(BaseModel):
     ip: str
@@ -41,7 +61,7 @@ class Host(BaseModel):
     last_ping: str = "00:00:00"
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 hosts_db: List[Host] = []
@@ -52,35 +72,35 @@ monitoring_task = None
 
 # Валидация IP-адреса
 def is_valid_ip(ip: str) -> bool:
-    # Упрощенная валидация для примера
-    parts = ip.split('.')
-    return len(parts) == 4 and all(part.isdigit() for part in parts)
+    try:
+        ipaddress.IPv4Address(ip)
+        return True
+    except ipaddress.AddressValueError:
+        return False
 
 
-# Фоновая задача мониторинга
 async def ping_hosts():
     while True:
-        for host in hosts_db:
-            try:
-                result = await async_ping(host.ip, count=4, timeout=2)
-                host.status = "online" if result.is_alive else "offline"
-                host.rtt = result.avg_rtt * 1000 if result.is_alive else None
-                host.loss = result.packet_loss * 100
-                host.delivered = 100 - host.loss
-                host.last_ping = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            except Exception:
-                host.status = "error"
-                host.rtt = None
-                host.loss = 100.0
-                host.delivered = 0.0
-        await broadcast_hosts_update()  # Рассылаем данные после каждого цикла
-        await asyncio.sleep(1)
+        tasks = [ping_host(host) for host in hosts_db]
+        await asyncio.gather(*tasks)
+        await broadcast_hosts_update()
+        await asyncio.sleep(0.5)
 
 
-# Запуск фоновой задачи при старте
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(ping_hosts())
+async def ping_host(host):
+    logger.info(f"{datetime.now()}: Проверка хоста: {host.ip}, статус: {host.status}")
+    try:
+        result = await async_ping(host.ip, interval=0.1, count=10, timeout=1)
+        host.status = "online" if result.is_alive else "offline"
+        host.rtt = result.avg_rtt * 1000 if result.is_alive else None
+        host.loss = result.packet_loss * 100
+        host.delivered = 100 - host.loss
+        host.last_ping = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    except Exception as e:
+        host.status = "error"
+        host.rtt = None
+        host.loss = 100.0
+        host.delivered = 0.0
 
 
 @app.websocket("/api/ws/monitor")
@@ -130,6 +150,7 @@ async def broadcast_hosts_update():
         try:
             await connection.send_json(data)
         except Exception:
+            print('Удалили соединение... host ')
             active_connections.remove(connection)
 
 
@@ -137,30 +158,32 @@ async def broadcast_hosts_update():
 @app.post("/api/hosts")
 async def add_host(host: Host):
     # Проверка дубликатов
-    if host.ip.lower() in [h.ip.lower() for h in hosts_db]:
-        raise HTTPException(409, "Host already exists")
-
     if not is_valid_ip(host.ip):
         raise HTTPException(400, "Invalid IP address")
 
+    if host.ip.lower() in [h.ip.lower() for h in hosts_db]:
+        raise HTTPException(409, "Host already exists")
+
     hosts_db.append(host)
     await broadcast_hosts_update()  # Мгновенное обновление для всех клиентов
-    return {"status": "success",
-            "host": host.dict()}
+    return {"status": "success", "host": host.model_dump()}
 
 
 @app.post("/api/import")
 async def import_csv(file: UploadFile = File(...)):
-    content = await file.read()
-    reader = csv.reader(StringIO(content.decode()), delimiter=';')
-    added = 0
-    for row in reader:
-        if row and is_valid_ip(row[0]):
-            ip = row[0]
-            if ip not in [h.ip for h in hosts_db]:
-                hosts_db.append(Host(ip=ip))
-                added += 1
-    return {"status": "success", "added": added}
+    try:
+        content = await file.read()
+        reader = csv.reader(StringIO(content.decode()), delimiter=';')
+        added = 0
+        for row in reader:
+            if row and is_valid_ip(row[0]):
+                ip = row[0]
+                if ip not in [h.ip for h in hosts_db]:
+                    hosts_db.append(Host(ip=ip))
+                    added += 1
+        return {"status": "success", "added": added}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Ошибка при импорте CSV: {str(e)}")
 
 
 @app.get("/api/export")

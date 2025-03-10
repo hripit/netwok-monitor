@@ -1,130 +1,138 @@
-import { BrowserRouter as Router} from 'react-router-dom';
-import { AppBar, Toolbar, Typography, Container, Snackbar } from '@mui/material';
-import HostTable from './components/HostTable';
+// src/App.tsx
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { BrowserRouter as Router } from 'react-router-dom';
+import { Snackbar } from '@mui/material';
 import HostForm from './components/HostForm';
-import { useState, useEffect, useRef } from 'react';
+import HostTable from './components/HostTable';
 import { Host } from './types';
 
-function App() {
+const RECONNECT_INTERVAL = 1000; // 1 секунда
+const BATCH_UPDATE_DELAY = 100; // 100 мс для группировки обновлений
+
+const App = () => {
   const [hosts, setHosts] = useState<Host[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const ws = useRef<WebSocket | null>(null);
+  const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
+  const messageBuffer = useRef<Host[]>([]);
+  const updateTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // Исправление 1: Убираем завершающий слэш в URL
-  const API_BASE_URL = process.env.REACT_APP_API_URL
-    ? process.env.REACT_APP_API_URL.replace(/\/$/, '') // Удаляем слэш в конце
-    : 'https://localhost:8443';
+  // Непосредственное обновление состояния
+  const updateHostsState = useCallback((newData: Host[]) => {
+    setHosts(prev => {
+      const merged = new Map([...prev, ...newData].map(h => [h.ip, h]));
+      return Array.from(merged.values());
+    });
+  }, []);
 
-  // Исправление 2: Корректное формирование WS_URL
-  const WS_URL = `${API_BASE_URL.replace(/^http/, 'ws')}/api/ws/monitor`;
+  // Обработчик WebSocket-сообщений
+  const handleWsMessage = useCallback((event: MessageEvent) => {
+    try {
+      const newData: Host[] = JSON.parse(event.data);
+      messageBuffer.current = [...messageBuffer.current, ...newData];
 
-  useEffect(() => {
-    const connectWebSocket = () => {
-      if (typeof window === 'undefined') return;
+      // Группируем обновления для оптимизации
+      if (updateTimer.current) clearTimeout(updateTimer.current);
+      updateTimer.current = setTimeout(() => {
+        updateHostsState(messageBuffer.current);
+        messageBuffer.current = [];
+      }, BATCH_UPDATE_DELAY);
+    } catch (error) {
+      console.error('Ошибка обработки сообщения:', error);
+    }
+  }, [updateHostsState]);
 
-      ws.current = new WebSocket(WS_URL);
+  // Подключение WebSocket
+  const connectWebSocket = useCallback(() => {
+    if (ws.current?.readyState === WebSocket.OPEN) return;
 
-      ws.current.onopen = () => {
-        console.log('WebSocket connected to:', WS_URL);
-      };
+    const wsUrl = process.env.REACT_APP_WS_URL || 'wss://localhost:8443';
+    ws.current = new WebSocket(`${wsUrl}/api/ws/monitor`);
 
-      ws.current.onmessage = (event) => {
-        try {
-          const data: Host[] = JSON.parse(event.data);
-          setHosts(data);
-        } catch (error) {
-          console.error('Ошибка парсинга данных:', error);
-          setErrorMessage('Ошибка обработки данных');
-        }
-      };
-
-      ws.current.onerror = (error) => {
-        console.error('WebSocket Error:', error);
-        setErrorMessage('Ошибка соединения с сервером');
-      };
-
-      ws.current.onclose = () => {
-        console.log('WebSocket disconnected. Reconnecting...');
-        setTimeout(connectWebSocket, 5000);
-      };
+    ws.current.onopen = () => {
+      console.log('WebSocket подключен');
+      setErrorMessage(null);
+      if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
     };
+
+    ws.current.onmessage = handleWsMessage;
+
+    ws.current.onerror = (error) => {
+      console.error('WebSocket ошибка:', error);
+      setErrorMessage('Ошибка соединения. Переподключение...');
+    };
+
+    ws.current.onclose = () => {
+      console.log('WebSocket отключен');
+      reconnectTimeout.current = setTimeout(connectWebSocket, RECONNECT_INTERVAL);
+    };
+  }, [handleWsMessage]);
+
+  // Инициализация WebSocket
+  useEffect(() => {
 
     connectWebSocket();
-
-    // Исправление 3: Убираем лишний слэш в fetch-запросе
-    fetch(`${API_BASE_URL}/api/hosts`)
-      .then(response => {
-        if (!response.ok) throw new Error('Ошибка загрузки данных');
-        return response.json();
-      })
-      .then(data => setHosts(data))
-      .catch(error => {
-        console.error('Ошибка инициализации:', error);
-        setErrorMessage('Ошибка загрузки данных');
-      });
-
     return () => {
-      ws.current?.close();
+      if (ws.current) {
+        ws.current.close();
+        if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
+        if (updateTimer.current) clearTimeout(updateTimer.current);
+      }
     };
-  }, [API_BASE_URL, WS_URL]);
+  }, [connectWebSocket]);
 
+  // Обработчик добавления хоста
   const handleAddHost = async (newHost: Host) => {
     try {
-      // Исправление 4: Используем API_BASE_URL вместо apiURL
-      const response = await fetch(`${API_BASE_URL}/api/hosts`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/hosts/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newHost),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Ошибка добавления хоста');
-      }
-
-      const createdHost = await response.json();
-      setHosts(prev => [...prev, createdHost]);
-      setSuccessMessage('Хост успешно добавлен');
-      setErrorMessage(null);
+      if (!response.ok) throw new Error('Ошибка добавления хоста');
+      setSuccessMessage('Хост добавлен успешно');
     } catch (error: any) {
       setErrorMessage(error.message || 'Ошибка добавления хоста');
-      setSuccessMessage(null);
     }
   };
 
+  // Принудительное обновление через WebSocket
+  const handleRefresh = () => {
+    ws.current?.send('refresh');
+  };
+
   return (
-    <Router>
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6">Network Monitor</Typography>
-        </Toolbar>
-      </AppBar>
-      <Container>
-        {errorMessage && (
-          <Snackbar
-            open={!!errorMessage}
-            message={errorMessage}
-            autoHideDuration={6000}
-            onClose={() => setErrorMessage(null)}
+      <Router>
+        <div className="App">
+          {/* Уведомления */}
+          {errorMessage && (
+              <Snackbar
+                  open={!!errorMessage}
+                  message={errorMessage}
+                  autoHideDuration={6000}
+                  onClose={() => setErrorMessage(null)}
+              />
+          )}
+          {successMessage && (
+              <Snackbar
+                  open={!!successMessage}
+                  message={successMessage}
+                  autoHideDuration={3000}
+                  onClose={() => setSuccessMessage(null)}
+              />
+          )}
+
+          {/* Форма и таблица */}
+          <HostForm
+              onAddHost={handleAddHost}
+              onImport={handleRefresh}
+              hosts={hosts}
           />
-        )}
-        {successMessage && (
-          <Snackbar
-            open={!!successMessage}
-            message={successMessage}
-            autoHideDuration={3000}
-            onClose={() => setSuccessMessage(null)}
-          />
-        )}
-        <HostForm onAddHost={handleAddHost} />
-        <HostTable
-          hosts={hosts}
-          onRefresh={() => ws.current?.send('refresh')}
-        />
-      </Container>
-    </Router>
+          <HostTable hosts={hosts} />
+        </div>
+      </Router>
   );
-}
+};
 
 export default App;

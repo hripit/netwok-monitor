@@ -1,81 +1,190 @@
+// src/components/HostForm.tsx
 import { useState } from 'react';
-import { TextField, Button, Box, Alert } from '@mui/material';
+import { TextField, Button, Box, Alert, Typography } from '@mui/material';
 import { Host } from '../types';
+import { CSVLink } from "react-csv";
+import GetAppIcon from '@mui/icons-material/GetApp';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 interface HostFormProps {
-  onAddHost: (newHost: Host) => Promise<void>;
+    onAddHost: (newHost: Host) => Promise<void>;
+    onImport: () => void;
+    hosts: Host[]; // Для экспорта данных
 }
 
-const HostForm = ({ onAddHost }: HostFormProps) => {
-  const [ip, setIp] = useState('');
-  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+const HostForm = ({ onAddHost, onImport, hosts }: HostFormProps) => {
+    const [ip, setIp] = useState('');
+    //const [file, setFile] = useState<File | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-    // Нормализация IP: убираем пробелы и приводим к нижнему регистру
-    const normalizedIP = ip.trim().toLowerCase();
-    setIp(normalizedIP); // Обновляем состояние для отображения очищенного IP
+    // Заголовки для CSV
+    const csvHeaders = [
+        { label: "IP", key: "ip" },
+        { label: "Статус", key: "status" },
+        { label: "RTT, мс", key: "rtt" },
+        { label: "% доставки", key: "delivered" },
+        { label: "% потерь", key: "loss" },
+        { label: "Последний пинг", key: "last_ping" }
+    ];
 
-    // Валидация формата IP
-    if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(normalizedIP)) {
-      setError('Некорректный формат IP-адреса');
-      return;
-    }
+    // Преобразование данных для экспорта
+    const exportData = hosts.map(host => ({
+        ip: host.ip,
+        status: host.status,
+        rtt: host.rtt ? `${host.rtt.toFixed(1)}` : 'N/A',
+        delivered: `${host.delivered.toFixed(1)}%`,
+        loss: `${host.loss.toFixed(1)}%`,
+        last_ping: host.last_ping ? new Date(host.last_ping).toLocaleString() : 'N/A'
+    }));
 
-    try {
-      // Создаем новый хост (статус по умолчанию 'unknown')
-      const newHost: Host = {
-        ip: normalizedIP,
-        status: 'unknown',
-        rtt: null,
-        delivered: 0,
-        loss: 100,
-        last_ping: '00:00:00'
-      };
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const normalizedIP = ip.trim().toLowerCase();
 
-      // Вызываем функцию добавления хоста из родительского компонента
-      await onAddHost(newHost);
+        if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(normalizedIP)) {
+            setError('Некорректный формат IP-адреса');
+            return;
+        }
 
-      // Очищаем форму при успешном добавлении
-      setIp('');
-      setError(null);
+        try {
+            const newHost: Host = {
+                ip: normalizedIP,
+                status: 'unknown',
+                rtt: null,
+                delivered: 0,
+                loss: 100,
+                last_ping: '00:00:00'
+            };
 
-    } catch (error: any) {
-      // Обрабатываем ошибки от API
-      const errorMessage = error?.response?.data?.detail || 'Ошибка добавления хоста';
-      setError(errorMessage);
-    }
-  };
+            await onAddHost(newHost);
+            setIp('');
+            setError(null);
+            setSuccessMessage('Хост успешно добавлен');
+        } catch (error: any) {
+            setError(error?.response?.data?.detail || 'Ошибка добавления хоста');
+            setSuccessMessage(null);
+        }
+    };
 
-  return (
-      <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = e.target.files?.[0];
+        if (!selectedFile) {
+            setError('Файл не выбран');
+            return;
+        }
 
-        <TextField
-            label="IP-адрес"
-            variant="outlined"
-            fullWidth
-            value={ip}
-            onChange={(e) => setIp(e.target.value)}
-            error={!!error}
-            helperText={error ? 'Проверьте формат IP' : ''}
-            InputProps={{
-              style: { fontFamily: 'monospace' }
-            }}
-        />
+        const formData = new FormData();
+        formData.append('file', selectedFile);
 
-        <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            sx={{ mt: 2 }}
-            disabled={!ip.trim()}
-        >
-          Добавить хост
-        </Button>
-      </Box>
-  );
+        try {
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/import`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Ошибка импорта');
+            }
+
+            setSuccessMessage(`Успешно импортировано: ${await response.text()}`);
+            setError(null);
+            onImport(); // Обновляем данные через WebSocket
+        } catch (error: any) {
+            setError(error.message || 'Ошибка импорта CSV');
+            setSuccessMessage(null);
+        }
+    };
+
+    return (
+        <Box component="form" sx={{ mt: 3 }}>
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+            {successMessage && <Alert severity="success" sx={{ mb: 2 }}>{successMessage}</Alert>}
+
+            {/* Группировка блока "Добавить хост" */}
+            <Box
+                sx={{
+                    p: 3,
+                    border: '1px solid #ccc',
+                    borderRadius: 2,
+                    bgcolor: '#f9f9f9',
+                    mb: 3,
+                }}
+            >
+                <Typography variant="h6" sx={{ mb: 2 }}>
+                    Добавить хост
+                </Typography>
+
+                {/* Поле для IP и кнопка "Добавить хост" */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    {/* Поле для IP */}
+                    <TextField
+                        label="IP-адрес"
+                        variant="outlined"
+                        value={ip}
+                        onChange={(e) => setIp(e.target.value)}
+                        error={!!error}
+                        helperText={error ? 'Проверьте формат IP' : ''}
+                        inputProps={{ maxLength: 15, style: { fontFamily: 'monospace' } }}
+                        sx={{ flex: 1 }}
+                    />
+
+                    {/* Кнопка "Добавить хост" */}
+                    <Button
+                        type="submit"
+                        variant="contained"
+                        color="primary"
+                        disabled={!ip.trim()}
+                        onClick={handleSubmit}
+                        sx={{ height: 'fit-content' }}
+                    >
+                        Добавить
+                    </Button>
+                </Box>
+            </Box>
+
+            {/* Блок импорта/экспорта */}
+            <Box sx={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                {/* Импорт CSV */}
+                <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileChange} // Вызываем импорт сразу после выбора файла
+                    id="csv-file-input"
+                    style={{ display: 'none' }}
+                />
+                <label htmlFor="csv-file-input">
+                    <Button
+                        variant="contained"
+                        component="span"
+                        startIcon={<CloudUploadIcon />}
+                        sx={{ mt: 2 }}
+                    >
+                        Import CSV
+                    </Button>
+                </label>
+
+                {/* Экспорт CSV */}
+                <CSVLink
+                    data={exportData}
+                    headers={csvHeaders}
+                    filename={`monitoring_${new Date().toISOString().slice(0,10)}.csv`}
+                    separator=";"
+                    style={{ textDecoration: 'none' }}
+                >
+                    <Button
+                        variant="outlined"
+                        startIcon={<GetAppIcon />}
+                        sx={{ mt: 2 }}
+                    >
+                        Export CSV
+                    </Button>
+                </CSVLink>
+            </Box>
+        </Box>
+    );
 };
 
 export default HostForm;
