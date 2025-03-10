@@ -1,5 +1,5 @@
 // src/components/HostForm.tsx
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TextField, Button, Box, Alert, Typography } from '@mui/material';
 import { Host } from '../types';
 import { CSVLink } from "react-csv";
@@ -12,12 +12,25 @@ interface HostFormProps {
     hosts: Host[]; // Для экспорта данных
 }
 
-
 const HostForm = ({ onAddHost, onImport, hosts }: HostFormProps) => {
     const [ip, setIp] = useState('');
-    //const [file, setFile] = useState<File | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+    // Автоматический сброс сообщений через useEffect
+    useEffect(() => {
+        if (successMessage) {
+            const timer = setTimeout(() => setSuccessMessage(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [successMessage]);
+
+    useEffect(() => {
+        if (error) {
+            const timer = setTimeout(() => setError(null), 6000);
+            return () => clearTimeout(timer);
+        }
+    }, [error]);
 
     // Заголовки для CSV
     const csvHeaders = [
@@ -127,7 +140,9 @@ const HostForm = ({ onAddHost, onImport, hosts }: HostFormProps) => {
                         onChange={(e) => setIp(e.target.value)}
                         error={!!error}
                         helperText={error ? 'Проверьте формат IP' : ''}
-                        inputProps={{ maxLength: 15, style: { fontFamily: 'monospace' } }}
+                        slotProps={{
+                            htmlInput: { maxLength: 15, style: { fontFamily: 'monospace' } },
+                        }}
                         sx={{ flex: 1 }}
                     />
 

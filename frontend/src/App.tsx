@@ -13,6 +13,7 @@ const App = () => {
   const [hosts, setHosts] = useState<Host[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
   const messageBuffer = useRef<Host[]>([]);
@@ -20,8 +21,8 @@ const App = () => {
 
   // Непосредственное обновление состояния
   const updateHostsState = useCallback((newData: Host[]) => {
-    setHosts(prev => {
-      const merged = new Map([...prev, ...newData].map(h => [h.ip, h]));
+    setHosts((prev) => {
+      const merged = new Map([...prev, ...newData].map((h) => [h.ip, h]));
       return Array.from(merged.values());
     });
   }, []);
@@ -71,8 +72,8 @@ const App = () => {
 
   // Инициализация WebSocket
   useEffect(() => {
-
     connectWebSocket();
+
     return () => {
       if (ws.current) {
         ws.current.close();
@@ -90,6 +91,7 @@ const App = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newHost),
       });
+
       if (!response.ok) throw new Error('Ошибка добавления хоста');
       setSuccessMessage('Хост добавлен успешно');
     } catch (error: any) {
@@ -125,9 +127,9 @@ const App = () => {
 
           {/* Форма и таблица */}
           <HostForm
-              onAddHost={handleAddHost}
-              onImport={handleRefresh}
-              hosts={hosts}
+              onAddHost={handleAddHost} // Передаём метод добавления хоста
+              onImport={handleRefresh} // Передаём метод импорта
+              hosts={hosts} // Передаём текущие хосты
           />
           <HostTable hosts={hosts} />
         </div>
