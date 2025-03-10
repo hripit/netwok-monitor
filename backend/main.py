@@ -10,7 +10,7 @@ from icmplib import async_ping
 from datetime import datetime
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response  # Исправление: добавлен импорт Response
+from fastapi.responses import Response
 from starlette.websockets import WebSocketDisconnect
 from contextlib import asynccontextmanager
 
@@ -24,7 +24,6 @@ async def lifespan(app: FastAPI):
 
     yield  # Приложение работает
 
-    # Здесь можно добавить код для завершения работы
     logger.info("Приложение завершает работу.")
 
 
@@ -79,6 +78,7 @@ def is_valid_ip(ip: str) -> bool:
         return False
 
 
+# Пинг хостов
 async def ping_hosts():
     while True:
         tasks = [ping_host(host) for host in hosts_db]
@@ -124,7 +124,6 @@ async def websocket_monitor(websocket: WebSocket):
                 closed = True
                 break
             except Exception:
-                # Обработка других ошибок
                 closed = True
                 break
 
@@ -211,12 +210,11 @@ async def export_csv():
 
 
 if __name__ == "__main__":
-    # Исправление: добавьте SSL-параметры, если используете сертификаты
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=443,
         reload=True,
-        ssl_keyfile="/app/certs/key.pem",  # Укажите путь к вашему ключу
-        ssl_certfile="/app/certs/cert.pem"  # Укажите путь к вашему сертификату
+        ssl_keyfile="/app/certs/key.pem",
+        ssl_certfile="/app/certs/cert.pem"
     )
