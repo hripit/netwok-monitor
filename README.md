@@ -66,4 +66,7 @@
    cd network-monitor
    docker-compose up --build
 2. **Приложение будет доступно по адресам**:
-   http://localhost  или https://localhost 
+   http://localhost  или https://localhost
+
+Для локального запуска проекта используйте скрипт `runner'a`.  
+Или скачайте его: [runner](https://github.com/hripit/network-monitor/blob/main/runner.cmd).
