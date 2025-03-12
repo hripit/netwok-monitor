@@ -1,4 +1,3 @@
-// src/App.tsx
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { Snackbar } from '@mui/material';
@@ -6,8 +5,8 @@ import HostForm from './components/HostForm';
 import HostTable from './components/HostTable';
 import { Host } from './types';
 
-const RECONNECT_INTERVAL = 1000; //
-const BATCH_UPDATE_DELAY = 100; //
+const RECONNECT_INTERVAL = 1000; // Интервал переподключения WebSocket
+const BATCH_UPDATE_DELAY = 100; // Задержка для группировки обновлений
 
 const App = () => {
   const [hosts, setHosts] = useState<Host[]>([]);
@@ -48,7 +47,8 @@ const App = () => {
   const connectWebSocket = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) return;
 
-    const wsUrl = process.env.REACT_APP_WS_URL || 'wss://localhost:8443';
+    // Выбор URL WebSocket в зависимости от окружения
+    const wsUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8080';
     ws.current = new WebSocket(`${wsUrl}/api/ws/monitor`);
 
     ws.current.onopen = () => {
@@ -105,35 +105,35 @@ const App = () => {
   };
 
   return (
-      <Router>
-        <div className="App">
-          {/* Уведомления */}
-          {errorMessage && (
-              <Snackbar
-                  open={!!errorMessage}
-                  message={errorMessage}
-                  autoHideDuration={6000}
-                  onClose={() => setErrorMessage(null)}
-              />
-          )}
-          {successMessage && (
-              <Snackbar
-                  open={!!successMessage}
-                  message={successMessage}
-                  autoHideDuration={3000}
-                  onClose={() => setSuccessMessage(null)}
-              />
-          )}
-
-          {/* Форма и таблица */}
-          <HostForm
-              onAddHost={handleAddHost} // Передаём метод добавления хоста
-              onImport={handleRefresh} // Передаём метод импорта
-              hosts={hosts} // Передаём текущие хосты
+    <Router>
+      <div className="App">
+        {/* Уведомления */}
+        {errorMessage && (
+          <Snackbar
+            open={!!errorMessage}
+            message={errorMessage}
+            autoHideDuration={6000}
+            onClose={() => setErrorMessage(null)}
           />
-          <HostTable hosts={hosts} />
-        </div>
-      </Router>
+        )}
+        {successMessage && (
+          <Snackbar
+            open={!!successMessage}
+            message={successMessage}
+            autoHideDuration={3000}
+            onClose={() => setSuccessMessage(null)}
+          />
+        )}
+
+        {/* Форма и таблица */}
+        <HostForm
+          onAddHost={handleAddHost} // Передаём метод добавления хоста
+          onImport={handleRefresh} // Передаём метод импорта
+          hosts={hosts} // Передаём текущие хосты
+        />
+        <HostTable hosts={hosts} />
+      </div>
+    </Router>
   );
 };
 

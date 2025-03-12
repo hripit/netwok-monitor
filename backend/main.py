@@ -34,7 +34,8 @@ origins = [
     'https://localhost:8443',
     'https://localhost',
     'https://backend:443',
-    'http://localhost:3000',  # для отладки
+    'http://localhost:3000',
+    "http://localhost:8080"# для отладки
 ]
 
 # В настройках CORS
