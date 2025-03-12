@@ -69,4 +69,4 @@
    http://localhost  или https://localhost
 
 Для локального запуска проекта используйте скрипт `runner'a`.  
-Или скачайте его: [runner](https://github.com/hripit/network-monitor/blob/main/runner.cmd).
+[runner](https://github.com/hripit/network-monitor/blob/main/runner.cmd).
