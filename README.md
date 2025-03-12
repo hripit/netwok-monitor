@@ -68,5 +68,4 @@
 2. **Приложение будет доступно по адресам**:
    http://localhost  или https://localhost
 
-Для локального запуска проекта используйте скрипт `runner'a`.  
-[runner](https://github.com/hripit/network-monitor/blob/main/runner.cmd).
+Для локального запуска проекта используйте скрипт `runner'a` [runner](https://github.com/hripit/network-monitor/blob/main/runner.cmd).
