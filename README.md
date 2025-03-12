@@ -62,7 +62,7 @@
 
 1. **Клонируйте репозиторий**:
    ```bash
-   git clone https://github.com/your-repo/network-monitor.git
+   git clone https://github.com/hripit/network-monitor.git
    cd network-monitor
    docker-compose up --build
 2. **Приложение будет доступно по адресам**:
