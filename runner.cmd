@@ -59,7 +59,8 @@ cd ..
 REM Запуск бэкенда
 echo Запуск бэкенда...
 cd backend
-start "Backend Server" cmd /c "call venv\Scripts\activate && uvicorn main:app --host 0.0.0.0 --port 8443 --ssl-keyfile ../certs/key.pem --ssl-certfile ../certs/cert.pem"
+set USE_SSL=False
+start "Backend Server" cmd /c "call venv\Scripts\activate && set USE_SSL=False && uvicorn main:app --host 0.0.0.0 --port 8080"
 cd ..
 
 REM Запуск фронтенда

@@ -8,6 +8,8 @@ services:
     volumes:
       - ./backend:/app
       - ./certs:/app/certs  # Сертификаты для бэкенда
+    environment:
+      - USE_SSL=True
     networks:
       - app-network
     cap_add:
@@ -28,6 +30,7 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
       - REACT_APP_API_URL=https://backend:443
+      - REACT_APP_WS_URL=wss://backend:443
     depends_on:
       - backend
     networks:

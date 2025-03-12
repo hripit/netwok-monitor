@@ -1,4 +1,5 @@
 import ipaddress
+import os
 import logging
 from fastapi import FastAPI, WebSocket, UploadFile, File, HTTPException
 from pydantic import BaseModel
@@ -210,11 +211,12 @@ async def export_csv():
 
 
 if __name__ == "__main__":
+    use_ssl = os.getenv('USE_SSL', 'True').lower() == 'true'
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=443,
+        port=8443 if use_ssl else 8080,
         reload=True,
-        ssl_keyfile="/app/certs/key.pem",
-        ssl_certfile="/app/certs/cert.pem"
+        ssl_keyfile="/app/certs/key.pem" if use_ssl else None,
+        ssl_certfile="/app/certs/cert.pem" if use_ssl else None
     )
